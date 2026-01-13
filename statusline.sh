@@ -261,6 +261,7 @@ parse_claude_input() {
       (.context_window.current_usage.cache_creation_input_tokens // 0) +
       (.context_window.current_usage.cache_read_input_tokens // 0)
     ),
+    (.context_window.current_usage.output_tokens // 0),
     (.cost.total_cost_usd // 0),
     (.cost.total_lines_added // 0),
     (.cost.total_lines_removed // 0)
@@ -509,25 +510,37 @@ build_model_component() {
 
 build_context_component() {
   local context_size="$1"
-  local current_usage="$2"
+  local input_tokens="$2"
+  local output_tokens="$3"
+
+  # Calculate total usage (input + output)
+  local total_usage=$((input_tokens + output_tokens))
 
   local context_percent=0
-  if [[ "${current_usage}" != "0" && "${context_size}" -gt 0 ]]; then
-    context_percent=$((current_usage * 100 / context_size))
+  if [[ "${total_usage}" != "0" && "${context_size}" -gt 0 ]]; then
+    context_percent=$((total_usage * 100 / context_size))
+    # Cap at 100%
+    [[ "${context_percent}" -gt 100 ]] && context_percent=100
   fi
 
   # Get colored progress bar
   local bar
   bar=$(build_progress_bar "${context_percent}")
 
-  # Format usage numbers (e.g., "54K/200K")
-  local usage_formatted
-  usage_formatted=$(format_number "${current_usage}")
-  local size_formatted
+  # Format usage numbers
+  local input_formatted output_formatted total_formatted size_formatted
+  input_formatted=$(format_number "${input_tokens}")
+  output_formatted=$(format_number "${output_tokens}")
+  total_formatted=$(format_number "${total_usage}")
   size_formatted=$(format_number "${context_size}")
 
-  # Output with brackets, colored bar, formatted numbers (no message)
-  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${context_percent}% ${usage_formatted}/${size_formatted}"
+  # Output: show total % and breakdown (input↓/output↑)
+  if [[ "${output_tokens}" -gt 0 ]]; then
+    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${context_percent}% ${CYAN}${input_formatted}↓${NC}/${MAGENTA}${output_formatted}↑${NC} ${GRAY}(${total_formatted}/${size_formatted})${NC}"
+  else
+    # No output tokens yet, show simple format
+    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${context_percent}% ${total_formatted}/${size_formatted}"
+  fi
 }
 
 build_directory_component() {
@@ -653,12 +666,13 @@ main() {
   fi
 
   # Extract fields
-  local model_name current_dir context_size current_usage cost_usd lines_added lines_removed
+  local model_name current_dir context_size input_tokens output_tokens cost_usd lines_added lines_removed
   {
     read -r model_name
     read -r current_dir
     read -r context_size
-    read -r current_usage
+    read -r input_tokens
+    read -r output_tokens
     read -r cost_usd
     read -r lines_added
     read -r lines_removed
@@ -669,7 +683,7 @@ EOF
   # Build components
   local model_part context_part dir_part git_part cost_part files_part
   model_part=$(build_model_component "${model_name}")
-  context_part=$(build_context_component "${context_size}" "${current_usage}")
+  context_part=$(build_context_component "${context_size}" "${input_tokens}" "${output_tokens}")
   dir_part=$(build_directory_component "${current_dir}")
 
   # Git component returns "git_display|file_count"
