@@ -374,6 +374,15 @@ EOF
   ahead="${ahead:-0}"
   behind="${behind:-0}"
 
+  # Get repo name from git remote URL
+  local repo_name=""
+  local remote_url
+  remote_url=$(git "${git_opts[@]}" config --get remote.origin.url 2>/dev/null || echo "")
+  if [[ -n "${remote_url}" ]]; then
+    # Extract repo name from URL (handles both HTTPS and SSH formats)
+    repo_name=$(echo "${remote_url}" | sed -E 's#.*[:/]([^/]+/[^/]+)(\.git)?$#\1#' | sed 's/\.git$//')
+  fi
+
   # Count modified files (lines not starting with #)
   local file_lines
   file_lines=$(echo "${status_output}" | grep -v '^#')
@@ -382,7 +391,7 @@ EOF
 
   # Clean state if no files
   if [[ "${total_files}" -eq 0 ]]; then
-    echo "${STATE_CLEAN}|${branch}|${ahead}|${behind}"
+    echo "${STATE_CLEAN}|${repo_name}|${branch}|${ahead}|${behind}"
     return 0
   fi
 
@@ -392,7 +401,7 @@ EOF
 $(git "${git_opts[@]}" diff HEAD --numstat 2>/dev/null | awk '{a+=$1; r+=$2} END {print a+0, r+0}' || true)
 EOF
 
-  echo "${STATE_DIRTY}|${branch}|${total_files}|${added}|${removed}|${ahead}|${behind}"
+  echo "${STATE_DIRTY}|${repo_name}|${branch}|${total_files}|${added}|${removed}|${ahead}|${behind}"
 }
 
 # ============================================================
@@ -415,10 +424,16 @@ format_git_not_repo() {
 }
 
 format_git_clean() {
-  local branch="$1" ahead="$2" behind="$3"
+  local repo_name="$1" branch="$2" ahead="$3" behind="$4"
 
-  # Simple format: branch + ahead/behind (no parentheses)
-  local output="${MAGENTA}${branch}${NC}"
+  # Format: repo_name (branch) + ahead/behind
+  local output=""
+  if [[ -n "${repo_name}" ]]; then
+    output="${CYAN}${repo_name}${NC} ${GRAY}(${NC}${MAGENTA}${branch}${NC}${GRAY})${NC}"
+  else
+    output="${MAGENTA}${branch}${NC}"
+  fi
+
   local ahead_behind
   ahead_behind=$(format_ahead_behind "${ahead}" "${behind}")
   [[ -n "${ahead_behind}" ]] && output+="${ahead_behind}"
@@ -427,10 +442,16 @@ format_git_clean() {
 }
 
 format_git_dirty() {
-  local branch="$1" files="$2" added="$3" removed="$4" ahead="$5" behind="$6"
+  local repo_name="$1" branch="$2" files="$3" added="$4" removed="$5" ahead="$6" behind="$7"
 
-  # Simple branch + ahead/behind (no file count, no line changes)
-  local output="${MAGENTA}${branch}${NC}"
+  # Format: repo_name (branch) + ahead/behind
+  local output=""
+  if [[ -n "${repo_name}" ]]; then
+    output="${CYAN}${repo_name}${NC} ${GRAY}(${NC}${MAGENTA}${branch}${NC}${GRAY})${NC}"
+  else
+    output="${MAGENTA}${branch}${NC}"
+  fi
+
   local ahead_behind
   ahead_behind=$(format_ahead_behind "${ahead}" "${behind}")
   [[ -n "${ahead_behind}" ]] && output+="${ahead_behind}"
@@ -454,20 +475,20 @@ EOF
       echo ""  # No file count
       ;;
     "${STATE_CLEAN}")
-      local branch ahead behind
-      IFS='|' read -r _ branch ahead behind << EOF
+      local repo_name branch ahead behind
+      IFS='|' read -r _ repo_name branch ahead behind << EOF
 ${git_data}
 EOF
-      format_git_clean "${branch}" "${ahead}" "${behind}"
+      format_git_clean "${repo_name}" "${branch}" "${ahead}" "${behind}"
       echo ""  # No file count for clean repo
       ;;
     "${STATE_DIRTY}")
-      local branch files added removed ahead behind
-      IFS='|' read -r _ branch files added removed ahead behind << EOF
+      local repo_name branch files added removed ahead behind
+      IFS='|' read -r _ repo_name branch files added removed ahead behind << EOF
 ${git_data}
 EOF
       # Returns "git_output|file_count"
-      format_git_dirty "${branch}" "${files}" "${added}" "${removed}" "${ahead}" "${behind}"
+      format_git_dirty "${repo_name}" "${branch}" "${files}" "${added}" "${removed}" "${ahead}" "${behind}"
       ;;
     *)
       # Unknown state - show error
@@ -505,25 +526,25 @@ build_context_component() {
   local size_formatted
   size_formatted=$(format_number "${context_size}")
 
-  # Get random funny message
-  local message
-  message=$(get_context_message "${context_percent}")
-
-  # Output with brackets, colored bar, formatted numbers, and message
-  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${context_percent}% ${usage_formatted}/${size_formatted} ${GRAY}|${NC} ${GRAY}${message}${NC}"
+  # Output with brackets, colored bar, formatted numbers (no message)
+  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${context_percent}% ${usage_formatted}/${size_formatted}"
 }
 
 build_directory_component() {
   local current_dir="$1"
 
-  local dir_name
+  local dir_path
   if [[ -n "${current_dir}" ]] && [[ "${current_dir}" != "${NULL_VALUE}" ]]; then
-    dir_name=$(get_dirname "${current_dir}")
+    dir_path="${current_dir}"
   else
-    dir_name=$(get_dirname "${PWD}")
+    dir_path="${PWD}"
   fi
 
-  echo "${DIR_ICON} ${BLUE}${dir_name}${NC}"
+  # Show last 2 path components (parent/current) for better context
+  local short_path
+  short_path=$(echo "${dir_path}" | awk -F'/' '{if (NF>=2) print $(NF-1)"/"$NF; else print $NF}')
+
+  echo "${DIR_ICON} ${BLUE}${short_path}${NC}"
 }
 
 build_git_component() {
