@@ -527,11 +527,16 @@ build_context_component() {
   local session_formatted
   session_formatted=$(format_number "${session_tokens}")
 
+  # Calculate window tokens from percentage
+  local window_tokens=$((current_percent * context_size / 100))
+  local window_formatted
+  window_formatted=$(format_number "${window_tokens}")
+
   # Main: progress toward next auto-compact | Secondary: current window + compact count
   if [[ "${compact_cycle}" -gt 0 ]]; then
-    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${session_percent}% ${session_formatted} ${GRAY}(#${compact_cycle})${NC} ${GRAY}|${NC} ${current_percent}% window"
+    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${session_percent}% ${session_formatted} ${GRAY}(#${compact_cycle})${NC} ${GRAY}|${NC} ${current_percent}% ${window_formatted} window"
   else
-    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${session_percent}% ${session_formatted} ${GRAY}|${NC} ${current_percent}% window"
+    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${session_percent}% ${session_formatted} ${GRAY}|${NC} ${current_percent}% ${window_formatted} window"
   fi
 }
 
