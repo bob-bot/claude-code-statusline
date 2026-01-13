@@ -257,12 +257,7 @@ parse_claude_input() {
     .workspace.current_dir,
     (.context_window.context_window_size // 200000),
     (.context_window.used_percentage // 0),
-    (
-      (.context_window.current_usage.input_tokens // 0) +
-      (.context_window.current_usage.output_tokens // 0) +
-      (.context_window.current_usage.cache_creation_input_tokens // 0) +
-      (.context_window.current_usage.cache_read_input_tokens // 0)
-    ),
+    ((.context_window.total_input_tokens // 0) + (.context_window.total_output_tokens // 0)),
     (.cost.total_cost_usd // 0),
     (.cost.total_lines_added // 0),
     (.cost.total_lines_removed // 0)
@@ -511,24 +506,27 @@ build_model_component() {
 
 build_context_component() {
   local context_size="$1"
-  local used_percent="$2"
-  local total_tokens="$3"
+  local current_percent="$2"
+  local session_tokens="$3"
 
-  # Use Claude's own percentage calculation (more accurate)
-  local context_percent="${used_percent:-0}"
-  [[ "${context_percent}" -gt 100 ]] && context_percent=100
+  # Session percentage: estimate auto-compact threshold as ~2x context window
+  local compact_threshold=$((context_size * 2))
+  local session_percent=0
+  if [[ "${session_tokens}" -gt 0 && "${compact_threshold}" -gt 0 ]]; then
+    session_percent=$((session_tokens * 100 / compact_threshold))
+    [[ "${session_percent}" -gt 100 ]] && session_percent=100
+  fi
 
-  # Get colored progress bar
+  # Get colored progress bar based on SESSION usage (what matters for auto-compact)
   local bar
-  bar=$(build_progress_bar "${context_percent}")
+  bar=$(build_progress_bar "${session_percent}")
 
-  # Format usage numbers
-  local total_formatted size_formatted
-  total_formatted=$(format_number "${total_tokens}")
-  size_formatted=$(format_number "${context_size}")
+  # Format numbers
+  local session_formatted
+  session_formatted=$(format_number "${session_tokens}")
 
-  # Simple output: total usage / context size
-  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${context_percent}% ${total_formatted}/${size_formatted}"
+  # Main: session progress (tracks auto-compact) | Secondary: current context window
+  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${session_percent}% ${session_formatted} session ${GRAY}|${NC} ${current_percent}% window"
 }
 
 build_directory_component() {
@@ -654,13 +652,13 @@ main() {
   fi
 
   # Extract fields
-  local model_name current_dir context_size used_percent total_tokens cost_usd lines_added lines_removed
+  local model_name current_dir context_size current_percent session_tokens cost_usd lines_added lines_removed
   {
     read -r model_name
     read -r current_dir
     read -r context_size
-    read -r used_percent
-    read -r total_tokens
+    read -r current_percent
+    read -r session_tokens
     read -r cost_usd
     read -r lines_added
     read -r lines_removed
@@ -671,7 +669,7 @@ EOF
   # Build components
   local model_part context_part dir_part git_part cost_part files_part
   model_part=$(build_model_component "${model_name}")
-  context_part=$(build_context_component "${context_size}" "${used_percent}" "${total_tokens}")
+  context_part=$(build_context_component "${context_size}" "${current_percent}" "${session_tokens}")
   dir_part=$(build_directory_component "${current_dir}")
 
   # Git component returns "git_display|file_count"
