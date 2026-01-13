@@ -528,19 +528,12 @@ build_context_component() {
   bar=$(build_progress_bar "${context_percent}")
 
   # Format usage numbers
-  local input_formatted output_formatted total_formatted size_formatted
-  input_formatted=$(format_number "${input_tokens}")
-  output_formatted=$(format_number "${output_tokens}")
+  local total_formatted size_formatted
   total_formatted=$(format_number "${total_usage}")
   size_formatted=$(format_number "${context_size}")
 
-  # Output: show total % and breakdown (input↓/output↑)
-  if [[ "${output_tokens}" -gt 0 ]]; then
-    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${context_percent}% ${CYAN}${input_formatted}↓${NC}/${MAGENTA}${output_formatted}↑${NC} ${GRAY}(${total_formatted}/${size_formatted})${NC}"
-  else
-    # No output tokens yet, show simple format
-    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${context_percent}% ${total_formatted}/${size_formatted}"
-  fi
+  # Simple output: total usage / context size
+  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${context_percent}% ${total_formatted}/${size_formatted}"
 }
 
 build_directory_component() {
