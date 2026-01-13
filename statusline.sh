@@ -509,17 +509,21 @@ build_context_component() {
   local current_percent="$2"
   local session_tokens="$3"
 
-  # Session percentage: estimate auto-compact threshold as ~2x context window
-  local compact_threshold=$((context_size * 2))
+  # Session percentage: use context window as base
+  # Early session: session ≈ window (both grow together)
+  # After compaction: session > 100% (shows accumulated usage beyond window)
   local session_percent=0
-  if [[ "${session_tokens}" -gt 0 && "${compact_threshold}" -gt 0 ]]; then
-    session_percent=$((session_tokens * 100 / compact_threshold))
-    [[ "${session_percent}" -gt 100 ]] && session_percent=100
+  if [[ "${session_tokens}" -gt 0 && "${context_size}" -gt 0 ]]; then
+    session_percent=$((session_tokens * 100 / context_size))
   fi
 
-  # Get colored progress bar based on SESSION usage (what matters for auto-compact)
+  # Cap display at 200% but keep bar at 100% max
+  local bar_percent="${session_percent}"
+  [[ "${bar_percent}" -gt 100 ]] && bar_percent=100
+
+  # Get colored progress bar based on SESSION usage (capped at 100% for display)
   local bar
-  bar=$(build_progress_bar "${session_percent}")
+  bar=$(build_progress_bar "${bar_percent}")
 
   # Format numbers
   local session_formatted
