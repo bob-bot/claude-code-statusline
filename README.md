@@ -9,8 +9,6 @@
 
 A sophisticated, cross-platform statusline for Claude Code that displays real-time contextual information including model details, context usage visualization, directory information, comprehensive git status, cost tracking, and code change metrics.
 
-This is the **successor to the [legacy gist version](https://gist.github.com/glauberlima/6422ca2a55eb91dc08ec3d3456a4d5c0)**, featuring significant improvements in performance, reliability, and functionality.
-
 ## Features
 
 ### Core Features
@@ -177,7 +175,7 @@ Input (JSON) → Parse → Build Components → Assemble → Output (ANSI)
 | Early returns | Skip unnecessary work | Guard clauses |
 | Single JSON parse | Minimize jq calls | Parse once, extract multiple |
 
-For detailed architecture documentation, see [CLAUDE.md](CLAUDE.md).
+For detailed architecture documentation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Testing
 
@@ -206,22 +204,26 @@ cat > test-input.json << 'EOF'
 EOF
 
 # Run test
-cat test-input.json | ./statusline.sh
+cat tests/fixtures/test-input.json | ./statusline.sh
 ```
 
 ### Automated Testing
 
 ```bash
-# Run the test suite
-./test_statusline.sh
+# Run unit tests
+./tests/unit.sh
+
+# Run integration tests
+./tests/integration.sh
 ```
 
 ## Documentation
 
-- **[STATUSLINE-REFERENCE.md](STATUSLINE-REFERENCE.md)**: Official Claude Code statusline documentation reference
-- **[CLAUDE.md](CLAUDE.md)**: Comprehensive architecture and implementation details (438 lines)
-- **[install.sh](install.sh)**: Installation script source code
-- **[test_statusline.sh](test_statusline.sh)**: Test suite for validation
+- [README.md](README.md) - Quick start and overview
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Complete implementation guide
+- [docs/REFERENCE.md](docs/REFERENCE.md) - Official statusline specification
+- [docs/TESTING.md](docs/TESTING.md) - Testing guide
+- [tests/README.md](tests/README.md) - How to run tests
 
 ## Contributing
 
@@ -237,7 +239,7 @@ Contributions are welcome! Here's how to get involved:
 2. Create a feature branch (`git checkout -b feature/improvement`)
 3. Follow the existing code style
 4. Test on multiple platforms if possible
-5. Reference [CLAUDE.md](CLAUDE.md) for architecture guidelines
+5. Reference [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for architecture guidelines
 6. Submit a pull request with clear description
 
 ### Code Style Guidelines
@@ -247,37 +249,6 @@ Contributions are welcome! Here's how to get involved:
 - Add comments for complex logic
 - Ensure POSIX compatibility where possible
 - Test performance impact of changes
-
-## Migration from Gist
-
-This repository is the **official successor** to the [legacy gist version](https://gist.github.com/glauberlima/6422ca2a55eb91dc08ec3d3456a4d5c0).
-
-### What's New in Repository Version
-
-| Feature | Gist Version | Repository Version |
-|---------|--------------|-------------------|
-| Platform detection | ❌ No | ✅ Yes (4 platforms) |
-| Git operations | ❌ 7 calls | ✅ 2 calls (71% faster) |
-| Cost tracking | ❌ No | ✅ Yes |
-| Lines tracking | ❌ No | ✅ Yes (added/removed) |
-| Testing suite | ❌ No | ✅ Yes |
-| Architecture docs | ❌ No | ✅ Comprehensive |
-| Installation script | ❌ Manual | ✅ Automated |
-| Error handling | ⚠️ Basic | ✅ Robust |
-| Git version check | ❌ No | ✅ With caching |
-
-### Migration Steps
-
-1. Remove old gist version:
-   ```bash
-   rm ~/.claude/statusline.sh
-   ```
-
-2. Install repository version using one of the [installation methods](#installation)
-
-3. Update your `~/.claude/settings.json` (path remains the same)
-
-4. Restart Claude Code
 
 ## Inspirations
 

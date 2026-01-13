@@ -1,8 +1,15 @@
-# Statusline.sh - Project Documentation
+# Statusline.sh - Architecture & Implementation Guide
 
 > Advanced statusline implementation for Claude Code CLI
 > Version: 1.0.0
 > Last updated: 2026-01-13
+
+## Documentation Index
+
+- [README](../README.md) - Quick start and overview
+- [REFERENCE](REFERENCE.md) - Official statusline specification
+- [TESTING](TESTING.md) - Testing guide
+- [Tests](../tests/README.md) - Running tests
 
 ## Table of Contents
 
@@ -870,177 +877,12 @@ Pass to relevant builder or create new one.
 
 ## Testing
 
-### Manual Testing
-
-#### Test 1: Basic Functionality
-
-```bash
-# Create test input
-cat > test-input.json << 'EOF'
-{
-  "model": {"display_name": "Opus"},
-  "workspace": {"current_dir": "/Users/test/project"},
-  "context_window": {
-    "context_window_size": 200000,
-    "current_usage": {
-      "input_tokens": 50000,
-      "cache_creation_input_tokens": 10000,
-      "cache_read_input_tokens": 5000
-    }
-  },
-  "cost": {
-    "total_cost_usd": 0.15,
-    "total_lines_added": 156,
-    "total_lines_removed": 23
-  }
-}
-EOF
-
-# Run test
-cat test-input.json | ./statusline.sh
-```
-
-**Expected output**:
-```
-🚀 Opus | 🔥 [████████░░░░░░░] 32% | 📂 project 🎋 (branch | ...) | 💵 $0.15 | ✏️  +156/-23
-```
-
-#### Test 2: Not a Git Repo
-
-```bash
-# In a non-git directory
-cd /tmp
-cat test-input.json | ./statusline.sh
-```
-
-**Expected**: Shows "(not a git repository)"
-
-#### Test 3: Dirty Git Repo
-
-```bash
-# In a git repo with changes
-cd /path/to/git/repo
-# Make some changes
-echo "test" >> file.txt
-
-cat test-input.json | ./statusline.sh
-```
-
-**Expected**: Shows file count, +added/-removed lines
-
-#### Test 4: Null Values
-
-```bash
-# Test with missing cost data
-cat > test-null.json << 'EOF'
-{
-  "model": {"display_name": "Haiku"},
-  "workspace": {"current_dir": "/test"},
-  "context_window": {
-    "context_window_size": 200000
-  },
-  "cost": {}
-}
-EOF
-
-cat test-null.json | ./statusline.sh
-```
-
-**Expected**: No cost or lines components shown (graceful null handling)
-
-#### Test 5: Platform-Specific Icons
-
-```bash
-# Test on MinGW
-PLATFORM=mingw ./statusline.sh < test-input.json
-
-# Test on macOS
-PLATFORM=macos ./statusline.sh < test-input.json
-```
-
-**Expected**: ASCII characters on MinGW, emojis on macOS
-
-### Automated Testing
-
-Create a test suite (bash script):
-
-```bash
-#!/bin/bash
-# tests.sh
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-
-passed=0
-failed=0
-
-test_case() {
-  local name="$1"
-  local input="$2"
-  local expected_pattern="$3"
-
-  echo -n "Testing: $name... "
-
-  local output
-  output=$(echo "$input" | ./statusline.sh)
-
-  if echo "$output" | grep -q "$expected_pattern"; then
-    echo -e "${GREEN}PASS${NC}"
-    ((passed++))
-  else
-    echo -e "${RED}FAIL${NC}"
-    echo "  Expected pattern: $expected_pattern"
-    echo "  Got: $output"
-    ((failed++))
-  fi
-}
-
-# Test cases
-test_case "Model name display" \
-  '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"/test"},"context_window":{"context_window_size":200000}}' \
-  "Opus"
-
-test_case "Directory display" \
-  '{"model":{"display_name":"Test"},"workspace":{"current_dir":"/home/user/project"},"context_window":{"context_window_size":200000}}' \
-  "project"
-
-# Add more test cases...
-
-echo ""
-echo "Tests passed: $passed"
-echo "Tests failed: $failed"
-
-[ $failed -eq 0 ] && exit 0 || exit 1
-```
-
-Run tests:
-```bash
-chmod +x tests.sh
-./tests.sh
-```
-
-### Integration Testing
-
-Test with actual Claude Code:
-
-1. Update `.claude/settings.json`:
-```json
-{
-  "statusLine": {
-    "command": "/path/to/statusline.sh"
-  }
-}
-```
-
-2. Start Claude Code session
-3. Verify statusline updates on each message
-4. Test different scenarios:
-   - Clean git repo
-   - Dirty git repo
-   - Non-git directory
-   - Different context usage levels
-   - Cost tracking updates
+See [TESTING.md](TESTING.md) for comprehensive testing guide including:
+- Manual testing procedures
+- Automated testing with test suites
+- Integration testing with Claude Code
+- Platform-specific testing
+- Adding new test cases
 
 ---
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# test_statusline.sh - Unit tests for statusline.sh
+# Unit tests for statusline.sh components
 
 set -euo pipefail
 
 # Source the statusline functions by extracting everything except the main call
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Create a temporary file with statusline functions (remove last line which calls main)
 TEMP_FILE=$(mktemp)
