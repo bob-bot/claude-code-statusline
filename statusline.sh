@@ -256,12 +256,13 @@ parse_claude_input() {
     .model.display_name,
     .workspace.current_dir,
     (.context_window.context_window_size // 200000),
+    (.context_window.used_percentage // 0),
     (
       (.context_window.current_usage.input_tokens // 0) +
+      (.context_window.current_usage.output_tokens // 0) +
       (.context_window.current_usage.cache_creation_input_tokens // 0) +
       (.context_window.current_usage.cache_read_input_tokens // 0)
     ),
-    (.context_window.current_usage.output_tokens // 0),
     (.cost.total_cost_usd // 0),
     (.cost.total_lines_added // 0),
     (.cost.total_lines_removed // 0)
@@ -510,18 +511,12 @@ build_model_component() {
 
 build_context_component() {
   local context_size="$1"
-  local input_tokens="$2"
-  local output_tokens="$3"
+  local used_percent="$2"
+  local total_tokens="$3"
 
-  # Calculate total usage (input + output)
-  local total_usage=$((input_tokens + output_tokens))
-
-  local context_percent=0
-  if [[ "${total_usage}" != "0" && "${context_size}" -gt 0 ]]; then
-    context_percent=$((total_usage * 100 / context_size))
-    # Cap at 100%
-    [[ "${context_percent}" -gt 100 ]] && context_percent=100
-  fi
+  # Use Claude's own percentage calculation (more accurate)
+  local context_percent="${used_percent:-0}"
+  [[ "${context_percent}" -gt 100 ]] && context_percent=100
 
   # Get colored progress bar
   local bar
@@ -529,7 +524,7 @@ build_context_component() {
 
   # Format usage numbers
   local total_formatted size_formatted
-  total_formatted=$(format_number "${total_usage}")
+  total_formatted=$(format_number "${total_tokens}")
   size_formatted=$(format_number "${context_size}")
 
   # Simple output: total usage / context size
@@ -659,13 +654,13 @@ main() {
   fi
 
   # Extract fields
-  local model_name current_dir context_size input_tokens output_tokens cost_usd lines_added lines_removed
+  local model_name current_dir context_size used_percent total_tokens cost_usd lines_added lines_removed
   {
     read -r model_name
     read -r current_dir
     read -r context_size
-    read -r input_tokens
-    read -r output_tokens
+    read -r used_percent
+    read -r total_tokens
     read -r cost_usd
     read -r lines_added
     read -r lines_removed
@@ -676,7 +671,7 @@ EOF
   # Build components
   local model_part context_part dir_part git_part cost_part files_part
   model_part=$(build_model_component "${model_name}")
-  context_part=$(build_context_component "${context_size}" "${input_tokens}" "${output_tokens}")
+  context_part=$(build_context_component "${context_size}" "${used_percent}" "${total_tokens}")
   dir_part=$(build_directory_component "${current_dir}")
 
   # Git component returns "git_display|file_count"
