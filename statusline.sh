@@ -509,44 +509,30 @@ build_context_component() {
   local current_percent="$2"
   local session_tokens="$3"
 
-  # BUG WORKAROUND: Claude Code provides cumulative session tokens,
-  # not current context window usage (see github.com/anthropics/claude-code/issues/13783)
-  #
-  # Strategy:
-  # - Before compaction (cumulative <= context): use cumulative directly
-  # - After compaction (cumulative > context): apply 0.68 correction factor
-  #   Factor based on observed: real 91% when cumulative showed 133%
+  # Show session tokens as percentage of context window
+  # Over 100% = you've used more than one context window worth (compaction likely occurred)
+  local session_percent=$((session_tokens * 100 / context_size))
 
-  local estimated_tokens
-  local is_estimate=""
+  # Progress bar caps at 100% but percentage can exceed
+  local bar_percent="${session_percent}"
+  [[ "${bar_percent}" -gt 100 ]] && bar_percent=100
 
-  if [[ "${session_tokens}" -le "${context_size}" ]]; then
-    # No compaction yet - cumulative ≈ actual
-    estimated_tokens="${session_tokens}"
-  else
-    # Compaction occurred - apply correction factor
-    local correction_factor=68
-    estimated_tokens=$((session_tokens * correction_factor / 100))
-    is_estimate="~"
-  fi
-
-  local estimated_percent=$((estimated_tokens * 100 / context_size))
-
-  # Cap at 100%
-  [[ "${estimated_percent}" -gt 100 ]] && estimated_percent=100
-
-  # Use estimated percentage for progress bar
   local bar
-  bar=$(build_progress_bar "${estimated_percent}")
+  bar=$(build_progress_bar "${bar_percent}")
 
   # Format tokens
-  local estimated_formatted
-  estimated_formatted=$(format_number "${estimated_tokens}")
+  local session_formatted
+  session_formatted=$(format_number "${session_tokens}")
   local size_formatted
   size_formatted=$(format_number "${context_size}")
 
-  # Show: progress bar | % and tokens (~ prefix indicates estimate after compaction)
-  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${is_estimate}${estimated_percent}% ${is_estimate}${estimated_formatted}/${size_formatted}"
+  # Show session usage - over 100% means compaction occurred
+  # This helps users know when to start a fresh session
+  if [[ "${session_percent}" -gt 100 ]]; then
+    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${RED}${session_percent}%${NC} ${session_formatted}/${size_formatted}"
+  else
+    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${session_percent}% ${session_formatted}/${size_formatted}"
+  fi
 }
 
 build_directory_component() {
