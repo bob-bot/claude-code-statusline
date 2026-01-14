@@ -8,6 +8,12 @@ readonly BAR_WIDTH=15
 readonly BAR_FILLED="█"
 readonly BAR_EMPTY="░"
 
+# Hidden context offset (system prompt + tool definitions)
+# Set to 0 to disable, or adjust based on your observations
+# Default 40000 accounts for ~40K tokens of hidden context
+readonly HIDDEN_CONTEXT_OFFSET=40000
+readonly ENABLE_HIDDEN_CONTEXT_OFFSET=true
+
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly BLUE='\033[0;34m'
@@ -509,9 +515,15 @@ build_context_component() {
   local current_percent="$2"
   local session_tokens="$3"
 
-  # Show session tokens as percentage of context window
-  # Over 100% = you've used more than one context window worth (compaction likely occurred)
-  local session_percent=$((session_tokens * 100 / context_size))
+  # Add hidden context offset if enabled
+  # (accounts for system prompt + tool definitions not exposed in JSON)
+  local adjusted_tokens="${session_tokens}"
+  if [[ "${ENABLE_HIDDEN_CONTEXT_OFFSET}" == "true" ]]; then
+    adjusted_tokens=$((session_tokens + HIDDEN_CONTEXT_OFFSET))
+  fi
+
+  # Show adjusted tokens as percentage of context window
+  local session_percent=$((adjusted_tokens * 100 / context_size))
 
   # Progress bar caps at 100% but percentage can exceed
   local bar_percent="${session_percent}"
@@ -520,14 +532,13 @@ build_context_component() {
   local bar
   bar=$(build_progress_bar "${bar_percent}")
 
-  # Format tokens
+  # Format tokens (show adjusted value)
   local session_formatted
-  session_formatted=$(format_number "${session_tokens}")
+  session_formatted=$(format_number "${adjusted_tokens}")
   local size_formatted
   size_formatted=$(format_number "${context_size}")
 
-  # Show session usage - over 100% means compaction occurred
-  # This helps users know when to start a fresh session
+  # Show session usage - over 100% means compaction likely occurred
   if [[ "${session_percent}" -gt 100 ]]; then
     echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${RED}${session_percent}%${NC} ${session_formatted}/${size_formatted}"
   else
