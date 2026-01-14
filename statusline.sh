@@ -509,23 +509,44 @@ build_context_component() {
   local current_percent="$2"
   local session_tokens="$3"
 
-  # Use Claude's reported percentage (most accurate for current window)
+  # BUG WORKAROUND: Claude Code provides cumulative session tokens,
+  # not current context window usage (see github.com/anthropics/claude-code/issues/13783)
+  #
+  # Strategy:
+  # - Before compaction (cumulative <= context): use cumulative directly
+  # - After compaction (cumulative > context): apply 0.68 correction factor
+  #   Factor based on observed: real 91% when cumulative showed 133%
+
+  local estimated_tokens
+  local is_estimate=""
+
+  if [[ "${session_tokens}" -le "${context_size}" ]]; then
+    # No compaction yet - cumulative ≈ actual
+    estimated_tokens="${session_tokens}"
+  else
+    # Compaction occurred - apply correction factor
+    local correction_factor=68
+    estimated_tokens=$((session_tokens * correction_factor / 100))
+    is_estimate="~"
+  fi
+
+  local estimated_percent=$((estimated_tokens * 100 / context_size))
+
+  # Cap at 100%
+  [[ "${estimated_percent}" -gt 100 ]] && estimated_percent=100
+
+  # Use estimated percentage for progress bar
   local bar
-  bar=$(build_progress_bar "${current_percent}")
+  bar=$(build_progress_bar "${estimated_percent}")
 
-  # Format session tokens
-  local session_formatted
-  session_formatted=$(format_number "${session_tokens}")
-
-  # Calculate window tokens from Claude's percentage
-  local window_tokens=$((current_percent * context_size / 100))
-  local window_formatted
-  window_formatted=$(format_number "${window_tokens}")
+  # Format tokens
+  local estimated_formatted
+  estimated_formatted=$(format_number "${estimated_tokens}")
   local size_formatted
   size_formatted=$(format_number "${context_size}")
 
-  # Show: progress bar for window | window tokens | session tokens (cumulative)
-  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${current_percent}% ${window_formatted}/${size_formatted} ${GRAY}|${NC} ${session_formatted} session"
+  # Show: progress bar | % and tokens (~ prefix indicates estimate after compaction)
+  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${is_estimate}${estimated_percent}% ${is_estimate}${estimated_formatted}/${size_formatted}"
 }
 
 build_directory_component() {
