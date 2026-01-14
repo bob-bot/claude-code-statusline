@@ -509,35 +509,23 @@ build_context_component() {
   local current_percent="$2"
   local session_tokens="$3"
 
-  # Calculate progress toward NEXT auto-compact
-  # Each compact cycle is ~1x context window
-  local session_percent=0
-  local compact_cycle=0
-  if [[ "${session_tokens}" -gt 0 && "${context_size}" -gt 0 ]]; then
-    compact_cycle=$((session_tokens / context_size))
-    local next_threshold=$(((compact_cycle + 1) * context_size))
-    session_percent=$((session_tokens * 100 / next_threshold))
-  fi
-
-  # Get colored progress bar based on progress toward next auto-compact
+  # Use Claude's reported percentage (most accurate for current window)
   local bar
-  bar=$(build_progress_bar "${session_percent}")
+  bar=$(build_progress_bar "${current_percent}")
 
-  # Format numbers
+  # Format session tokens
   local session_formatted
   session_formatted=$(format_number "${session_tokens}")
 
-  # Calculate window tokens from percentage
+  # Calculate window tokens from Claude's percentage
   local window_tokens=$((current_percent * context_size / 100))
   local window_formatted
   window_formatted=$(format_number "${window_tokens}")
+  local size_formatted
+  size_formatted=$(format_number "${context_size}")
 
-  # Main: progress toward next auto-compact | Secondary: current window + compact count
-  if [[ "${compact_cycle}" -gt 0 ]]; then
-    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${session_percent}% ${session_formatted} ${GRAY}(#${compact_cycle})${NC} ${GRAY}|${NC} ${current_percent}% ${window_formatted} window"
-  else
-    echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${session_percent}% ${session_formatted} ${GRAY}|${NC} ${current_percent}% ${window_formatted} window"
-  fi
+  # Show: progress bar for window | window tokens | session tokens (cumulative)
+  echo "${CONTEXT_ICON} ${GRAY}[${NC}${bar}${GRAY}]${NC} ${current_percent}% ${window_formatted}/${size_formatted} ${GRAY}|${NC} ${session_formatted} session"
 }
 
 build_directory_component() {
