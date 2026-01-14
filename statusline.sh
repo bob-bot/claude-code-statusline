@@ -263,7 +263,12 @@ parse_claude_input() {
     .workspace.current_dir,
     (.context_window.context_window_size // 200000),
     (.context_window.used_percentage // 0),
-    ((.context_window.total_input_tokens // 0) + (.context_window.total_output_tokens // 0)),
+    (
+      (.context_window.current_usage.input_tokens // 0) +
+      (.context_window.current_usage.output_tokens // 0) +
+      (.context_window.current_usage.cache_creation_input_tokens // 0) +
+      (.context_window.current_usage.cache_read_input_tokens // 0)
+    ),
     (.cost.total_cost_usd // 0),
     (.cost.total_lines_added // 0),
     (.cost.total_lines_removed // 0)
